@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uttarakhand Route Planner</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            margin-bottom: 30px;
+            border-radius: 5px;
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 2.2em;
+        }
+        
+        .subtitle {
+            font-style: italic;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+        
+        .controls {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        select, button {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        #map {
+            height: 400px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .results {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .metrics {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+        
+        .metric {
+            text-align: center;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            flex: 1;
+            margin: 0 10px;
+        }
+        
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .metric-label {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        
+        .path-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        
+        .path-step {
+            padding: 10px 15px;
+            margin-bottom: 5px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .step-number {
+            background-color: #3498db;
+            color: white;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        #error-message {
+            color: #e74c3c;
+            background-color: #fadbd8;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        /* Loading indicator styles */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .loading-spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .metrics {
+                flex-direction: column;
+            }
+            
+            .metric {
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Uttarakhand Route Planner</h1>
+            <div class="subtitle">Find optimal routes through the Himalayan state</div>
+        </header>
+        
+        <div class="controls">
+            <div class="form-group">
+                <label for="start">Starting Point:</label>
+                <select id="start">
+                    <option value="">Select starting point</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="end">Destination:</label>
+                <select id="end">
+                    <option value="">Select destination</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="optimize">Optimize For:</label>
+                <select id="optimize">
+                    <option value="distance">Shortest Distance</option>
+                    <option value="time">Shortest Time</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="algorithm">Algorithm:</label>
+                <select id="algorithm">
+                    <option value="dijkstra">Dijkstra's Algorithm</option>
+                </select>
+            </div>
+            
+            <button onclick="calculateRoute()">Calculate Route</button>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p>Calculating best route...</p>
+        </div>
+        
+        <div id="map"></div>
+        
+        <div class="results" id="results-container" style="display: none;">
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value" id="distance-value">0 km</div>
+                    <div class="metric-label">Total Distance</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="time-value">0 hrs</div>
+                    <div class="metric-label">Estimated Time</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="stops-value">0</div>
+                    <div class="metric-label">Route Stops</div>
+                </div>
+            </div>
+            
+            <h3>Route Path:</h3>
+            <ol class="path-list" id="path-steps"></ol>
+        </div>
+        
+        <div id="error-message"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Initialize map with Uttarakhand's center coordinates
+        const map = L.map('map').setView([30.0668, 79.0193], 8);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Variable to store the current route layer
+        let currentRouteLayer = null;
+
+        // Fetch stations from backend when page loads
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const response = await fetch('/get_stations');
+                const stations = await response.json();
+                
+                const startSelect = document.getElementById('start');
+                const endSelect = document.getElementById('end');
+                
+                // Clear existing options
+                startSelect.innerHTML = '<option value="">Select starting point</option>';
+                endSelect.innerHTML = '<option value="">Select destination</option>';
+                
+                // Add stations to dropdowns
+                stations.forEach(station => {
+                    const option1 = new Option(station, station);
+                    const option2 = new Option(station, station);
+                    startSelect.add(option1);
+                    endSelect.add(option2);
+                });
+            } catch (error) {
+                showError('Failed to load station data: ' + error.message);
+            }
+        });
+
+        async function calculateRoute() {
+            const start = document.getElementById('start').value;
+            const end = document.getElementById('end').value;
+            const optimize = document.getElementById('optimize').value;
+            const algorithm = document.getElementById('algorithm').value;
+            
+            // Validate inputs
+            if (!start || !end) {
+                showError('Please select both starting point and destination');
+                return;
+            }
+            
+            if (start === end) {
+                showError('Starting point and destination cannot be the same');
+                return;
+            }
+            
+            // Show loading indicator
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results-container').style.display = 'none';
+            document.getElementById('error-message').style.display = 'none';
+            
+            try {
+                const response = await fetch('/calculate_route', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        start: start,
+                        end: end,
+                        optimize: optimize,
+                        algorithm: algorithm
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayResults(data);
+                } else {
+                    showError(data.error || 'Failed to calculate route');
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+        
+        function displayResults(data) {
+            // Update metrics
+            document.getElementById('distance-value').textContent = 
+                data.total_distance.toFixed(1) + ' km';
+            document.getElementById('time-value').textContent = 
+                data.total_time.toFixed(1) + ' hrs';
+            document.getElementById('stops-value').textContent = 
+                data.path.length;
+            
+            // Update path steps
+            const pathSteps = document.getElementById('path-steps');
+            pathSteps.innerHTML = '';
+            
+            data.path.forEach((step, index) => {
+                const li = document.createElement('li');
+                li.className = 'path-step';
+                
+                const numberSpan = document.createElement('span');
+                numberSpan.className = 'step-number';
+                numberSpan.textContent = index + 1;
+                
+                const textSpan = document.createElement('span');
+                textSpan.textContent = step;
+                
+                li.appendChild(numberSpan);
+                li.appendChild(textSpan);
+                pathSteps.appendChild(li);
+            });
+            
+            // Update map
+            updateMap(data.path_coordinates);
+            
+            // Show results container
+            document.getElementById('results-container').style.display = 'block';
+        }
+        
+        function updateMap(pathCoordinates) {
+            // Clear previous route if exists
+            if (currentRouteLayer) {
+                map.removeLayer(currentRouteLayer);
+                currentRouteLayer = null;
+            }
+            
+            // Clear all existing markers
+            map.eachLayer(layer => {
+                if (layer instanceof L.Marker) {
+                    map.removeLayer(layer);
+                }
+            });
+            
+            if (pathCoordinates.length === 0) return;
+            
+            // Create array of LatLng points
+            const latlngs = pathCoordinates.map(coord => [coord.lat, coord.lng]);
+            
+            // Create a polyline to represent the route
+            const polyline = L.polyline(latlngs, {
+                color: '#3498db',
+                weight: 5,
+                opacity: 0.7,
+                smoothFactor: 1
+            }).addTo(map);
+            
+            currentRouteLayer = polyline;
+            
+            // Add markers for each point
+            pathCoordinates.forEach((coord, index) => {
+                const isFirst = index === 0;
+                const isLast = index === pathCoordinates.length - 1;
+                
+                const marker = L.marker([coord.lat, coord.lng], {
+                    icon: L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div style="background-color: ${
+                            isFirst ? '#2ecc71' : isLast ? '#e74c3c' : '#3498db'
+                        }; color: white; border-radius: 50%; width: 25px; height: 25px; 
+                        display: flex; align-items: center; justify-content: center; 
+                        font-weight: bold;">${index + 1}</div>`
+                    })
+                }).addTo(map);
+                
+                marker.bindPopup(`<b>${coord.name}</b><br>Stop ${index + 1}`);
+            });
+            
+            // Fit map to show the entire route
+            map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+        }
+        
+        function showError(message) {
+            const errorElement = document.getElementById('error-message');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
